@@ -2,6 +2,7 @@ from io import BytesIO
 
 import streamlit as st
 import torch
+from torch._prims_common import DeviceLikeType
 
 from evaluator import Evaluator, EvaluatorResult
 from pipeline import (
@@ -11,33 +12,56 @@ from pipeline import (
     SpeechToTextModel,
     TextToSpeechModel,
 )
-from response_generator import LlmResponseGenerator
+from response_generator import LlmResponseGenerator, SYSTEM_PROMPT_DICT
 from utils import get_device
 
+device = get_device()
+if device == "cpu":
+    st.warning("Using CPU for inference")
 
-@st.cache_resource(show_spinner=False)
-def get_pipeline():
-    device = get_device()
-    if device == "cpu":
-        st.warning("Using CPU for inference")
-    with st.spinner("Loading Speech to Text model"):
-        speech_to_text_model = SpeechToTextModel()
-    with st.spinner("Loading Emotion Prediction model"):
-        emotion_prediction_model = EmotionPredictionModel(device)
-    with st.spinner("Loading Llm Response Generator"):
-        llm_response_generator = LlmResponseGenerator(
-            provider="google_genai", model="gemini-2.5-flash"
-        )
-    with st.spinner("Loading Text to Speech model"):
-        text_to_speech_model = TextToSpeechModel(device)
-    with st.spinner("Initializing pipeline"):
-        pipeline = Pipeline(
-            speech_to_text_model=speech_to_text_model,
-            emotion_prediction_model=emotion_prediction_model,
-            llm_response_generator=llm_response_generator,
-            text_to_speech_model=text_to_speech_model,
-        )
-    return pipeline
+should_show_intermediate_steps: bool = st.toggle("Show intermediate steps")
+should_evaluate: bool = st.toggle("Evaluate results against metrics")
+_llm_instruction_level = st.segmented_control(
+    label="Set instruction level given to LLM",
+    options=SYSTEM_PROMPT_DICT.keys(),
+    selection_mode='single',
+    default="Full",
+)
+
+
+@st.cache_resource(show_spinner="Loading Speech to Text Model")
+def get_speech_to_text_model() -> SpeechToTextModel:
+    return SpeechToTextModel()
+
+
+@st.cache_resource(show_spinner="Loading Emotion Prediction Model")
+def get_emotion_prediction_model() -> EmotionPredictionModel:
+    return EmotionPredictionModel(device=device)
+
+
+@st.cache_resource(show_spinner="Loading Llm Response Generator")
+def get_llm_response_generator(llm_instruction_level: str) -> LlmResponseGenerator:
+    return LlmResponseGenerator(
+        provider="google_genai",
+        model="gemini-2.5-flash",
+        system_prompt=SYSTEM_PROMPT_DICT[llm_instruction_level],
+        should_use_system_prompt=llm_instruction_level != "None"
+    )
+
+
+@st.cache_resource(show_spinner="Loading Text to Speech Model")
+def get_text_to_speech_model() -> TextToSpeechModel:
+    return TextToSpeechModel(device=device)
+
+
+@st.cache_resource(show_spinner='Initializing pipeline')
+def get_pipeline(llm_instruction_level: str):
+    return Pipeline(
+        speech_to_text_model=get_speech_to_text_model(),
+        emotion_prediction_model=get_emotion_prediction_model(),
+        llm_response_generator=get_llm_response_generator(llm_instruction_level=llm_instruction_level),
+        text_to_speech_model=get_text_to_speech_model(),
+    )
 
 
 @st.cache_resource(show_spinner="Initializing response evaluator")
@@ -45,10 +69,7 @@ def get_evaluator() -> Evaluator:
     return Evaluator()
 
 
-pipeline = get_pipeline()
-
-should_show_intermediate_steps: bool = st.toggle("Show intermediate steps")
-should_evaluate: bool = st.toggle("Evaluate results against metrics")
+pipeline = get_pipeline(llm_instruction_level=_llm_instruction_level)
 
 
 @st.cache_resource(show_spinner="Processing your audio... 🎧")

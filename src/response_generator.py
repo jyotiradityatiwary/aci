@@ -30,9 +30,23 @@ provider_required_api_key_map = {
     "mistralai": "MISTRAL_API_KEY",
 }
 
+SYSTEM_PROMPT_DICT = {
+    "None": "",
+    "Minimal": "You will receive a user's text and their detected emotion. Respond appropriately.",
+    "Full": (
+        "You are an advanced AI assistant with a high degree of emotional intelligence. Your function is to analyze and respond to user inputs that contain both transcribed text and a specific emotional label detected from the user's voice.\n"
+        "You will be provided with the user's text and an emotional signifier from the following list: angry, fearful, disgust, surprise, neutral, calm, happy, or sad.\n"
+        "Your primary goal is to generate a response that is not only contextually relevant to the user's words but also emotionally attuned to their state. You must adapt your tone, language, and the substance of your reply to appropriately address the identified emotion.\n"
+        "For negative emotions like angry, fearful, or sad, adopt a supportive, patient, and calming tone.\n"
+        "For positive emotions like happy or calm, respond with an engaging and encouraging tone that matches the user's energy.\n"
+        "For emotions like surprise or disgust, your response should be validating and help clarify the situation.\n"
+        "For a neutral state, maintain a standard, helpful, and clear tone.\n"
+        "Your ability to craft empathetic and suitable responses based on this emotional context is critical to your function."
+    ),
+}
 
 class LlmResponseGenerator:
-    def __init__(self, provider: str, model: str, **kwargs):
+    def __init__(self, provider: str, model: str, system_prompt: str, should_use_system_prompt: bool, **kwargs):
         self.provider = provider
         self.model = model
         self.kwargs = kwargs
@@ -40,19 +54,10 @@ class LlmResponseGenerator:
             f"🤖 Initializing Emotion-Aware Processor for {provider} with model {model}..."
         )
         # self._setup_api_keys()
-        self.system_prompt = (
-            "You are an advanced AI assistant with a high degree of emotional intelligence. Your function is to analyze and respond to user inputs that contain both transcribed text and a specific emotional label detected from the user's voice.\n"
-            "You will be provided with the user's text and an emotional signifier from the following list: angry, fearful, disgust, surprise, neutral, calm, happy, or sad.\n"
-            "Your primary goal is to generate a response that is not only contextually relevant to the user's words but also emotionally attuned to their state. You must adapt your tone, language, and the substance of your reply to appropriately address the identified emotion.\n"
-            "For negative emotions like angry, fearful, or sad, adopt a supportive, patient, and calming tone.\n"
-            "For positive emotions like happy or calm, respond with an engaging and encouraging tone that matches the user's energy.\n"
-            "For emotions like surprise or disgust, your response should be validating and help clarify the situation.\n"
-            "For a neutral state, maintain a standard, helpful, and clear tone.\n"
-            "Your ability to craft empathetic and suitable responses based on this emotional context is critical to your function."
-        )
-        self._setup_chain()
+        self.system_prompt = system_prompt
+        self._setup_chain(should_use_system_prompt)
 
-    def _setup_chain(self):
+    def _setup_chain(self, should_use_system_prompt: bool):
         # This method is unchanged
         self.llm = init_chat_model(
             model=self.model,
@@ -60,15 +65,21 @@ class LlmResponseGenerator:
             temperature=self.kwargs.get("temperature", 0.7),
             api_key=API_KEYS[provider_required_api_key_map[self.provider]],
         )
-        self.prompt_template = ChatPromptTemplate.from_messages(
-            [
-                ("system", self.system_prompt),
-                (
+        human_chat_segment = (
                     "human",
                     "User Input:\n{user_input}\nDetected Emotion:\n{emotion_label}",
-                ),
-            ]
-        )
+                )
+        if should_use_system_prompt:
+            self.prompt_template = ChatPromptTemplate.from_messages(
+                [
+                    ("system", self.system_prompt),
+                    human_chat_segment,
+                ]
+            )
+        else:
+            self.prompt_template = ChatPromptTemplate.from_messages(
+                [human_chat_segment]
+            )
         self.chain = self.prompt_template | self.llm | StrOutputParser()
         print("✅ AI Chain initialized with emotional intelligence.")
 

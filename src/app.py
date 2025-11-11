@@ -1,7 +1,9 @@
 from io import BytesIO
 
 import streamlit as st
+import torch
 
+from evaluator import Evaluator, EvaluatorResult
 from pipeline import (
     EmotionPredictionModel,
     Pipeline,
@@ -38,37 +40,49 @@ def get_pipeline():
     return pipeline
 
 
+@st.cache_resource(show_spinner="Initializing response evaluator")
+def get_evaluator() -> Evaluator:
+    return Evaluator()
+
+
 pipeline = get_pipeline()
 
-verbose_output: bool = st.toggle("verbose output")
+should_show_intermediate_steps: bool = st.toggle("Show intermediate steps")
+should_evaluate: bool = st.toggle("Evaluate results against metrics")
 
 
-@st.cache_data(show_spinner="Processing your audio... 🎧")
+@st.cache_resource(show_spinner="Processing your audio... 🎧")
 def call_pipeline_with_cache(uploaded_file: BytesIO) -> PipelineResult:
     return pipeline(uploaded_file)
+
+
+@st.cache_resource(show_spinner="Evaluating LLM output")
+def get_evaluation_result(filename: str, response_text: str) -> EvaluatorResult:
+    evaluator = get_evaluator()
+    return evaluator(filename=filename, response_text=response_text)
 
 
 uploaded_file = st.file_uploader(
     "Upload an audio file to process", type=["mp3", "wav", "m4a", "ogg", ".flac"]
 )
 
-if uploaded_file is None:
-    st.info("Please upload an audio file to get started.")
-else:
+if uploaded_file is not None:
     st.audio(uploaded_file, format="audio/wav")
 
     result = call_pipeline_with_cache(uploaded_file)
 
-    if verbose_output:
-        st.success("Processing finished!")
+    if should_show_intermediate_steps:
         st.subheader("Speech to Text Transcription:")
         st.write(result.speech_to_text_transcript)
 
         st.subheader("Speech Emotion Recognition Results")
         predicted_em = result.predicted_emotion
         confidence = result.emotion_probabilities[result.predicted_emotion]
-        st.write(
-            f"Detected emotion: {predicted_em} with confidence {confidence * 100:.2f}%"
+        st.table(
+            {
+                "Detected Emotion": predicted_em,
+                "Confidence": confidence,
+            }
         )
         st.bar_chart(result.emotion_probabilities)
 
@@ -77,3 +91,12 @@ else:
 
     st.subheader("Response")
     st.audio(result.audio_output, sample_rate=result.audio_output_sample_rate)
+
+    if should_evaluate:
+        evaluator_result = get_evaluation_result(
+            filename=uploaded_file.name,
+            response_text=result.llm_response,
+        )
+
+        st.subheader("Evaluation Results")
+        st.table(evaluator_result.as_flat_dict())

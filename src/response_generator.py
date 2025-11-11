@@ -1,62 +1,13 @@
 from dataclasses import dataclass
 
-import pandas as pd
 from langchain.chat_models import init_chat_model
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from config import API_KEYS, TARGET_RESPONSES_DIR
+from config import API_KEYS
 
 INTERMEDIATE_PROMPTS_CSV_PATH = "outputs/intermediate_prompts.csv"
 RESPONSE_OUTPUT_PATH = "outputs/emotional_responses.csv"
-
-
-class CorrectAnswers:
-    def __init__(self):
-        self._df = self._build_df()
-
-    @staticmethod
-    def _build_df() -> pd.DataFrame:
-        content = []
-        with open(TARGET_RESPONSES_DIR / "1.txt") as f:
-            content.append(f.read().strip())
-        with open(TARGET_RESPONSES_DIR / "2.txt") as f:
-            content.append(f.read().strip())
-        content = "\n\n".join(content)
-        content = [p.split("\n")[4] for p in content.split("\n\n")]
-
-        df = pd.DataFrame(
-            {
-                "correct_answer": content,
-                "emotion": [
-                    "angry",
-                    "fearful",
-                    "disgust",
-                    "surprise",
-                    "neutral",
-                    "calm",
-                    "happy",
-                    "sad",
-                ]
-                * 2
-                * 2,
-                "statement": (
-                    ["Kids are talking by the door"] * 8
-                    + ["Dogs are sitting by the door"] * 8
-                )
-                * 2,
-            }
-        )
-
-        df.set_index(["emotion", "statement"])
-        df.sort_index()
-        return df
-
-    def get(self, emotion: str, statement: str):
-        """Todo: fix fear-fearful datapoint"""
-        if emotion == "fear":
-            emotion = "fearful"
-        return self._df.loc[(emotion, statement)]["correct_answer"].sample(n=1).iloc[0]
 
 
 @dataclass

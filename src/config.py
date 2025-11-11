@@ -1,0 +1,17 @@
+from pathlib import Path
+
+_PROJECT_DIR = Path(__file__).parent.parent
+
+_DATA_DIR = _PROJECT_DIR / "data"
+RAVDESS_AUDIO_DIR = _DATA_DIR / "ravdess_audio_speech_actors_01-24"
+TARGET_RESPONSES_DIR = _DATA_DIR / "target_responses"
+
+MODELS_DIR = _PROJECT_DIR / "models"
+
+# -- Batch processing outputs
+_OUTPUT_DIR = _PROJECT_DIR / "outputs"
+INTERMEDIATE_PROMPTS_CSV_PATH = _OUTPUT_DIR / "intermediate_prompts.csv"
+RESPONSE_OUTPUT_PATH = _OUTPUT_DIR / "emotional_responses.csv"
+EMOTION_PREDICTION_CSV_PATH = _OUTPUT_DIR / "emotion_predictions.csv"
+
+API_KEYS = {"GOOGLE_API_KEY": "AIzaSyCEWLCuyIqugNqPer-0JuoT9w6titNkCVg"}

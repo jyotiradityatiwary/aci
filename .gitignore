@@ -5,3 +5,4 @@
 __pycache__/
 *.egg
 *.egg-info
+/src/config.py

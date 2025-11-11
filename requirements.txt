@@ -1,3 +1,4 @@
+numpy
 librosa
 soundfile
 transformers==4.37.2

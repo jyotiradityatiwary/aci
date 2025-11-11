@@ -14,4 +14,4 @@ INTERMEDIATE_PROMPTS_CSV_PATH = _OUTPUT_DIR / "intermediate_prompts.csv"
 RESPONSE_OUTPUT_PATH = _OUTPUT_DIR / "emotional_responses.csv"
 EMOTION_PREDICTION_CSV_PATH = _OUTPUT_DIR / "emotion_predictions.csv"
 
-API_KEYS = {"GOOGLE_API_KEY": "AIzaSyCEWLCuyIqugNqPer-0JuoT9w6titNkCVg"}
+API_KEYS = {"GOOGLE_API_KEY": "??????????????"}

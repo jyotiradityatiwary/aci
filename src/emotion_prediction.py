@@ -117,7 +117,7 @@ def getMELspectrogram(audio, sample_rate):
     return mel_spec_db
 
 
-def predict_from_signal(signal, sample_rate, model, device):
+def predict_from_signal(signal, sample_rate, model, device) -> tuple[str, dict[str, float]]:
     """
     Predicts the emotion from a raw audio signal.
 
@@ -193,7 +193,7 @@ def predict_from_signal(signal, sample_rate, model, device):
         probabilities = torch.squeeze(output_softmax).cpu().numpy()
 
     # Format probabilities into a dictionary
-    emotion_probabilities = {EMOTIONS[i]: prob for i, prob in enumerate(probabilities)}
+    emotion_probabilities: dict[str, float] = {EMOTIONS[i]: prob.item() for i, prob in enumerate(probabilities)}
 
     return predicted_emotion, emotion_probabilities
 
